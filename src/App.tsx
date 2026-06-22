@@ -503,7 +503,7 @@ export default function App() {
                           Expected Trend <span className="text-slate-500 font-normal text-sm">— Most Probable</span>
                         </h2>
                       </div>
-                      <span className="text-xs text-cyan-400 font-mono tracking-wider uppercase">Model: EWGND-X5 // 2026</span>
+                      <span className="text-xs text-cyan-400 font-mono tracking-wider uppercase">Model: {selectedCategory}-X5 // 2026</span>
                     </div>
                     <p className="text-xs text-slate-400 leading-relaxed">
                       *Adjusted for NIT Delhi expansion at Narela and recent EWS certificate saturation trends inside Delhi state pool. Historical 5-year deviation: ±2.1%.
@@ -759,7 +759,7 @@ export default function App() {
                 <div>
                   <h4 className="font-bold text-slate-100 text-sm font-mono uppercase tracking-wider">AI JAC Counselor</h4>
                   <p className="text-[10px] text-slate-400 flex items-center gap-1">
-                    <ActivityIcon className="w-2 h-2 text-emerald-400 fill-emerald-400 animate-pulse" /> Linked to 5-Yr EWGND Metrics
+                    <ActivityIcon className="w-2 h-2 text-emerald-400 fill-emerald-400 animate-pulse" /> Linked to 5-Yr {selectedCategory} Metrics
                   </p>
                 </div>
               </div>
@@ -835,7 +835,7 @@ export default function App() {
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Ask counselor about JAC EWGND trends..."
+                  placeholder={`Ask counselor about JAC ${selectedCategory} trends...`}
                   className="flex-1 bg-slate-950 text-slate-100 border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
                   disabled={isTyping}
                 />

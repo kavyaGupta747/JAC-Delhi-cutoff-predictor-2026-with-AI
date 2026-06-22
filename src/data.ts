@@ -118,27 +118,49 @@ export function getPredictionsForCategory(category: CategoryCode): Record<Branch
   for (const branch of branchList) {
     const isOS = category.endsWith('O');
     const r1 = ACTUAL_R1_2026[category]?.[branch] || 1000;
-    
+
     // Per user request:
     // Less strict than 2024 but stricter than 2025 for EWS
     // Less strict for both OBC and General (more relaxed slides).
-    let jumpPercent = 0.15; 
+    //
+    // FIX (June 2026): the original piecewise formula reset its offset at
+    // each rank threshold instead of continuing from where the previous
+    // segment ended. That made jumpPercent *drop* for branches just above a
+    // threshold (e.g. EWGND r1 just over 70,000 predicted LESS movement than
+    // r1 just under 70,000) — backwards, since predicted movement should
+    // never shrink as a branch gets less competitive. Fixed by flooring each
+    // segment at the value the prior segment reached, so jumpPercent is now
+    // monotonically non-decreasing in r1. Original slopes/offsets (i.e. the
+    // original calibration) are otherwise untouched.
+    let jumpPercent = 0.15;
 
     if (category.startsWith('EW')) {
       // EWS category: Moderate slides.
-      if (r1 < 30000) jumpPercent = 0.16 + (r1 / 320000);
-      else if (r1 < 70000) jumpPercent = 0.20 + (r1 / 550000);
-      else jumpPercent = 0.25 + (r1 / 1100000);
+      if (r1 < 30000) {
+        jumpPercent = 0.16 + (r1 / 320000);
+      } else if (r1 < 70000) {
+        jumpPercent = Math.max(0.20 + (r1 / 550000), 0.25375); // floor = value at r1=30,000
+      } else {
+        jumpPercent = Math.max(0.25 + (r1 / 1100000), 0.32727); // floor = value at r1=70,000
+      }
     } else if (category.startsWith('OB')) {
       // OBC category: wide relaxed slides.
-      if (r1 < 50000) jumpPercent = 0.25 + (r1 / 350000);
-      else if (r1 < 120000) jumpPercent = 0.30 + (r1 / 550000);
-      else jumpPercent = 0.38 + (r1 / 1000000);
+      if (r1 < 50000) {
+        jumpPercent = 0.25 + (r1 / 350000);
+      } else if (r1 < 120000) {
+        jumpPercent = Math.max(0.30 + (r1 / 550000), 0.39286); // floor = value at r1=50,000
+      } else {
+        jumpPercent = Math.max(0.38 + (r1 / 1000000), 0.51818); // floor = value at r1=120,000
+      }
     } else {
       // General category: Generous slides.
-      if (r1 < 15000) jumpPercent = 0.22 + (r1 / 120000);
-      else if (r1 < 35000) jumpPercent = 0.26 + (r1 / 250000);
-      else jumpPercent = 0.32 + (r1 / 500000);
+      if (r1 < 15000) {
+        jumpPercent = 0.22 + (r1 / 120000);
+      } else if (r1 < 35000) {
+        jumpPercent = Math.max(0.26 + (r1 / 250000), 0.345); // floor = value at r1=15,000
+      } else {
+        jumpPercent = Math.max(0.32 + (r1 / 500000), 0.40); // floor = value at r1=35,000
+      }
     }
 
     if (isOS) {
@@ -176,7 +198,7 @@ export function getHistoricalCutoffsForCategory(category: CategoryCode): Record<
 
   for (const branch of branchList) {
     const r1_2026 = ACTUAL_R1_2026[category]?.[branch] || 1000;
-    
+
     // Create trends by backing up from 2026 with realistic growth slides.
     const years = [2021, 2022, 2023, 2024, 2025];
     historical[branch] = years.map((year, devIdx) => {
@@ -186,10 +208,10 @@ export function getHistoricalCutoffsForCategory(category: CategoryCode): Record<
       }
 
       let discountRatio = 0.78 + (devIdx * 0.05); // default base
-      
+
       // Inject realistic past strictness factors
       if (category.startsWith('EW')) {
-        if (year === 2021) discountRatio = 0.55; 
+        if (year === 2021) discountRatio = 0.55;
         if (year === 2022) discountRatio = 0.75;
         if (year === 2023) discountRatio = 0.90;
         if (year === 2024) discountRatio = 0.85; // extremely strict
@@ -205,15 +227,15 @@ export function getHistoricalCutoffsForCategory(category: CategoryCode): Record<
         if (year === 2022) discountRatio = 0.80;
         if (year === 2023) discountRatio = 0.85;
         if (year === 2024) discountRatio = 0.98; // moderately strict
-        if (year === 2025) discountRatio = 0.92; 
+        if (year === 2025) discountRatio = 0.92;
       }
 
       const yearR1 = Math.round(r1_2026 * discountRatio);
       const isOS = category.endsWith('O');
-      
+
       const maxJumpLimit = isOS ? 5000 : 35000;
       let jumpRatio = isOS ? 0.12 : 0.28;
-      
+
       // Older years had huge upgradation movements due to physical reporting rules
       if (year <= 2023) jumpRatio *= 1.3;
 
