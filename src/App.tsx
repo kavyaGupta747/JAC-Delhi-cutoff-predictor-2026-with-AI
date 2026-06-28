@@ -34,7 +34,10 @@ import { BRANCHES, getPredictionsForCategory, getHistoricalCutoffsForCategory, C
 import { BranchCode, CategoryCode } from './types';
 
 export default function App() {
-  const [selectedCategory, setSelectedCategory] = useState<CategoryCode>('EWGND');
+  const [quota, setQuota] = useState<'GN' | 'EW' | 'OB'>('EW');
+  const [gender, setGender] = useState<'GN' | 'GL'>('GN');
+  const [region, setRegion] = useState<'D' | 'O'>('D');
+  const selectedCategory = `${quota}${gender}${region}` as CategoryCode;
   const [selectedCollege, setSelectedCollege] = useState<'ALL' | 'NSUT' | 'DTU' | 'IIITD' | 'IGDTUW'>('ALL');
   const [activeTab, setActiveTab] = useState<'predictions' | 'historical' | 'insights'>('predictions');
   const [selectedBranch, setSelectedBranch] = useState<BranchCode>('NSUT_ECE');
@@ -63,7 +66,7 @@ export default function App() {
     
     // Add predicted scenario 2026 for completeness
     const scenario = PREDICTIONS_2026[selectedBranch];
-    if (scenario) {
+    if (scenario && scenario.actualR1 > 0) {
       return [
         ...filtered.map(r => ({
           year: r.year.toString(),
@@ -71,6 +74,7 @@ export default function App() {
           'Round 2': r.r2,
           'Round 3': r.r3,
           'Round 4': r.r4,
+          'Round 5 (If happens)': r.r5,
           'Upgradation': r.upgradation
         })),
         {
@@ -79,6 +83,7 @@ export default function App() {
           'Round 2': scenario.trueOutcome.r2,
           'Round 3': scenario.trueOutcome.r3,
           'Round 4': scenario.trueOutcome.r4,
+          'Round 5 (If happens)': scenario.trueOutcome.r5,
           'Upgradation': scenario.trueOutcome.upgradation
         }
       ];
@@ -89,6 +94,7 @@ export default function App() {
       'Round 2': r.r2,
       'Round 3': r.r3,
       'Round 4': r.r4,
+      'Round 5 (If happens)': r.r5,
       'Upgradation': r.upgradation
     }));
   }, [selectedBranch]);
@@ -99,6 +105,8 @@ export default function App() {
     
     return Object.keys(BRANCHES).filter(key => {
       if (selectedCollege !== 'ALL' && BRANCHES[key as BranchCode].college !== selectedCollege) return false;
+      const pred = PREDICTIONS_2026[key as BranchCode];
+      if (!pred || pred.actualR1 === 0) return false;
       return true;
     }).map(key => {
       const code = key as BranchCode;
@@ -112,6 +120,7 @@ export default function App() {
       else if (evaluatedRank <= pred.worstCase.r2) { worstCaseStatus = 'Highly Probable'; worstChanceRound = 'Round 2'; }
       else if (evaluatedRank <= pred.worstCase.r3) { worstCaseStatus = 'Highly Probable'; worstChanceRound = 'Round 3'; }
       else if (evaluatedRank <= pred.worstCase.r4) { worstCaseStatus = 'Highly Probable'; worstChanceRound = 'Round 4'; }
+      else if (evaluatedRank <= pred.worstCase.r5) { worstCaseStatus = 'Borderline / Likely'; worstChanceRound = 'Round 5 (If happens)'; }
       else if (evaluatedRank <= pred.worstCase.upgradation) { worstCaseStatus = 'Borderline / Likely'; worstChanceRound = 'Upgradation Round'; }
       else if (evaluatedRank <= pred.worstCase.upgradation * 1.1) { worstCaseStatus = 'Borderline / Likely'; worstChanceRound = 'Upgradation Round (Borderline)'; }
 
@@ -122,6 +131,7 @@ export default function App() {
       else if (evaluatedRank <= pred.trueOutcome.r2) { trueOutcomeStatus = 'Highly Probable'; trueChanceRound = 'Round 2'; }
       else if (evaluatedRank <= pred.trueOutcome.r3) { trueOutcomeStatus = 'Highly Probable'; trueChanceRound = 'Round 3'; }
       else if (evaluatedRank <= pred.trueOutcome.r4) { trueOutcomeStatus = 'Highly Probable'; trueChanceRound = 'Round 4'; }
+      else if (evaluatedRank <= pred.trueOutcome.r5) { trueOutcomeStatus = 'Borderline / Likely'; trueChanceRound = 'Round 5 (If happens)'; }
       else if (evaluatedRank <= pred.trueOutcome.upgradation) { trueOutcomeStatus = 'Highly Probable'; trueChanceRound = 'Upgradation Round'; }
       else if (evaluatedRank <= pred.trueOutcome.upgradation * 1.12) { trueOutcomeStatus = 'Borderline / Likely'; trueChanceRound = 'Upgradation Round (Extreme)'; }
 
@@ -209,31 +219,44 @@ export default function App() {
             <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 uppercase">
               JAC Delhi 2026 Prediction Engine
             </h1>
-            <p className="text-xs font-mono text-cyan-400 tracking-widest uppercase mt-1">
-              Analysis Model: {selectedCategory} • Data Source: Official 2026 Round 1 Chart & College Pravesh Historic
-            </p>
+            <div className="flex flex-col md:flex-row gap-2 mt-2 items-start md:items-center">
+              <span className="text-emerald-400 font-bold bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded text-[10px] font-mono tracking-widest uppercase">Creator: IRONMANWASRYT</span>
+              <p className="text-[10px] md:text-xs font-mono text-cyan-400 tracking-widest uppercase">
+                Data Source: Official 2026 R1 & Historic Trends
+              </p>
+            </div>
           </div>
           
           <div className="flex flex-col md:flex-row items-center gap-4">
             <div className="flex border border-slate-700 rounded overflow-hidden">
               <button 
-                onClick={() => setSelectedCategory(selectedCategory.replace('NO', 'ND') as CategoryCode)}
-                className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition ${selectedCategory.endsWith('ND') ? 'bg-cyan-600 text-white' : 'bg-slate-900 text-slate-400'}`}
+                onClick={() => setGender('GN')}
+                className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition ${gender === 'GN' ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-400'}`}
+              >Neutral</button>
+              <button 
+                onClick={() => setGender('GL')}
+                className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition ${gender === 'GL' ? 'bg-indigo-600 text-white' : 'bg-slate-900 text-slate-400'}`}
+              >Female</button>
+            </div>
+          
+            <div className="flex border border-slate-700 rounded overflow-hidden">
+              <button 
+                onClick={() => setRegion('D')}
+                className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition ${region === 'D' ? 'bg-cyan-600 text-white' : 'bg-slate-900 text-slate-400'}`}
               >Delhi (HS)</button>
               <button 
-                onClick={() => setSelectedCategory(selectedCategory.replace('ND', 'NO') as CategoryCode)}
-                className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition ${selectedCategory.endsWith('NO') ? 'bg-cyan-600 text-white' : 'bg-slate-900 text-slate-400'}`}
+                onClick={() => setRegion('O')}
+                className={`px-3 py-1.5 text-xs font-mono font-bold uppercase transition ${region === 'O' ? 'bg-cyan-600 text-white' : 'bg-slate-900 text-slate-400'}`}
               >Outside (OS)</button>
             </div>
 
             <div className="flex gap-2">
               {(['GN', 'EW', 'OB'] as const).map((catPrefix) => {
-                const targetCat = `${catPrefix}G${selectedCategory.endsWith('ND') ? 'ND' : 'NO'}` as CategoryCode;
-                const isSelected = selectedCategory.startsWith(catPrefix);
+                const isSelected = quota === catPrefix;
                 return (
                   <button
                     key={catPrefix}
-                    onClick={() => setSelectedCategory(targetCat)}
+                    onClick={() => setQuota(catPrefix)}
                     className={`px-3 py-1.5 rounded text-xs font-mono font-bold uppercase transition border cursor-pointer ${
                       isSelected
                         ? 'border-cyan-400 bg-cyan-500/20 text-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.25)]'
@@ -444,7 +467,7 @@ export default function App() {
 
                   <p className="text-[10px] text-slate-400 leading-relaxed italic flex items-center gap-1.5">
                     <Info className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                    *Worst Case assumes tight competition inside Delhi State EWS. True Outcome incorporates structural seat vacating due to permanent Narela campus NIT-D deflections.
+                    *Worst Case assumes tight competition. True Outcome incorporates structural seat vacating due to permanent Narela campus NIT-D deflections.
                   </p>
                 </div>
               )}
@@ -506,7 +529,7 @@ export default function App() {
                       <span className="text-xs text-cyan-400 font-mono tracking-wider uppercase">Model: {selectedCategory}-X5 // 2026</span>
                     </div>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      *Adjusted for NIT Delhi expansion at Narela and recent EWS certificate saturation trends inside Delhi state pool. Historical 5-year deviation: ±2.1%.
+                      *Adjusted for NIT Delhi expansion at Narela and recent certificate saturation/competition trends. Historical 5-year deviation: ±2.1%.
                     </p>
 
                     <div className="overflow-hidden rounded-lg border border-slate-800">
@@ -518,11 +541,16 @@ export default function App() {
                             <th className="p-3 border-b border-slate-700 font-semibold">R2</th>
                             <th className="p-3 border-b border-slate-700 font-semibold">R3</th>
                             <th className="p-3 border-b border-slate-700 font-semibold">R4</th>
+                            <th className="p-3 border-b border-slate-700 font-semibold">R5 (If happens)</th>
                             <th className="p-3 border-b border-slate-700 font-semibold">Upgrad</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
-                          {Object.keys(PREDICTIONS_2026).filter(k => selectedCollege === 'ALL' || BRANCHES[k as BranchCode].college === selectedCollege).map((key) => {
+                          {Object.keys(PREDICTIONS_2026).filter(k => {
+                            if (selectedCollege !== 'ALL' && BRANCHES[k as BranchCode].college !== selectedCollege) return false;
+                            if (PREDICTIONS_2026[k as BranchCode].actualR1 === 0) return false;
+                            return true;
+                          }).map((key) => {
                             const branch = key as BranchCode;
                             const pred = PREDICTIONS_2026[branch];
                             return (
@@ -537,6 +565,7 @@ export default function App() {
                                 <td className="p-3 font-mono text-slate-200">{pred.trueOutcome.r2.toLocaleString()}</td>
                                 <td className="p-3 font-mono text-slate-200">{pred.trueOutcome.r3.toLocaleString()}</td>
                                 <td className="p-3 font-mono text-slate-200">{pred.trueOutcome.r4.toLocaleString()}</td>
+                                <td className="p-3 font-mono text-slate-200">{pred.trueOutcome.r5.toLocaleString()}</td>
                                 <td className="p-3 font-mono text-cyan-400 font-bold">{pred.trueOutcome.upgradation.toLocaleString()}</td>
                               </tr>
                             );
@@ -560,7 +589,7 @@ export default function App() {
                       <span className="text-xs text-red-400 font-mono tracking-wider uppercase">Model: High Retention // 2026</span>
                     </div>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      *Assumes high retention in Delhi State pool, increased EWS candidate volume (+18%), and stagnant withdrawal rates despite NIT-D growth.
+                      *Assumes high retention in candidate pool, increased candidate volume, and stagnant withdrawal rates despite NIT-D growth.
                     </p>
 
                     <div className="overflow-hidden rounded-lg border border-slate-800">
@@ -572,11 +601,16 @@ export default function App() {
                             <th className="p-3 border-b border-slate-700 font-semibold">R2</th>
                             <th className="p-3 border-b border-slate-700 font-semibold">R3</th>
                             <th className="p-3 border-b border-slate-700 font-semibold">R4</th>
+                            <th className="p-3 border-b border-slate-700 font-semibold">R5 (If happens)</th>
                             <th className="p-3 border-b border-slate-700 font-semibold">Upgrad</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
-                          {Object.keys(PREDICTIONS_2026).filter(k => selectedCollege === 'ALL' || BRANCHES[k as BranchCode].college === selectedCollege).map((key) => {
+                          {Object.keys(PREDICTIONS_2026).filter(k => {
+                            if (selectedCollege !== 'ALL' && BRANCHES[k as BranchCode].college !== selectedCollege) return false;
+                            if (PREDICTIONS_2026[k as BranchCode].actualR1 === 0) return false;
+                            return true;
+                          }).map((key) => {
                             const branch = key as BranchCode;
                             const pred = PREDICTIONS_2026[branch];
                             return (
@@ -591,6 +625,7 @@ export default function App() {
                                 <td className="p-3 font-mono text-slate-200">{pred.worstCase.r2.toLocaleString()}</td>
                                 <td className="p-3 font-mono text-slate-200">{pred.worstCase.r3.toLocaleString()}</td>
                                 <td className="p-3 font-mono text-slate-200">{pred.worstCase.r4.toLocaleString()}</td>
+                                <td className="p-3 font-mono text-slate-200">{pred.worstCase.r5.toLocaleString()}</td>
                                 <td className="p-3 font-mono text-red-400 font-bold">{pred.worstCase.upgradation.toLocaleString()}</td>
                               </tr>
                             );
@@ -691,6 +726,7 @@ export default function App() {
                             <th className="p-3">Round 2</th>
                             <th className="p-3">Round 3</th>
                             <th className="p-3">Round 4</th>
+                            <th className="p-3">Round 5 (If happens)</th>
                             <th className="p-3 text-teal-400 font-bold">Upgradation Round</th>
                           </tr>
                         </thead>
@@ -702,6 +738,7 @@ export default function App() {
                               <td className="p-3 font-mono">{r.r2 > 0 ? r.r2.toLocaleString() : 'N/A'}</td>
                               <td className="p-3 font-mono">{r.r3 > 0 ? r.r3.toLocaleString() : 'N/A'}</td>
                               <td className="p-3 font-mono">{r.r4 > 0 ? r.r4.toLocaleString() : 'N/A'}</td>
+                              <td className="p-3 font-mono">{r.r5 > 0 ? r.r5.toLocaleString() : 'N/A'}</td>
                               <td className="p-3 font-mono font-medium text-teal-400">{r.upgradation > 0 ? r.upgradation.toLocaleString() : 'N/A'}</td>
                             </tr>
                           ))}
@@ -864,7 +901,6 @@ export default function App() {
             JAC Delhi 2026 Academic Predictor. Data projections generated utilizing historical JAC structures and College Pravesh trend comparisons.
           </div>
           <div className="flex items-center gap-6">
-            <span className="text-emerald-400 font-bold bg-emerald-400/10 px-2 py-1 rounded">Creator: IRONMANWASRYT</span>
             <span className="text-slate-400">JAC-AI-ANALYTICS // v2.0.0</span>
           </div>
         </div>
